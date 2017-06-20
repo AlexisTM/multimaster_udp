@@ -25,7 +25,7 @@ import sys
 class MasterSync(object):
     def __init__(self):
         local_uri   = rosgraph.get_master_uri()
-        foreign_uri = rospy.get_param('~foreign_master', '')
+        foreign_uri = rospy.get_param('~foreign_master', None)
         if not foreign_uri:
             raise Exception('foreign_master URI not specified')
 
@@ -35,9 +35,9 @@ class MasterSync(object):
         self._local_services   = rospy.get_param('~local_services',   [])
         self._foreign_services = rospy.get_param('~foreign_services', [])
 
-        foreign_master = rosgraph.Master(rospy.get_name(), master_uri=foreign_uri)
+        self.foreign_master = rosgraph.Master(rospy.get_name(), master_uri=foreign_uri)
         r = rospy.Rate(1)
-        while not _is_master_up(foreign_master) and not rospy.is_shutdown():
+        while not self.is_master_up(self.foreign_master) and not rospy.is_shutdown():
             rospy.logdebug('Waiting for foreign master to come up...')
             r.sleep()
 
@@ -53,33 +53,30 @@ class MasterSync(object):
 
     def _local_publisher_update(self, topic, publishers):
         topic_type = self._local_manager.get_topic_type(topic)
-        
         self._foreign_manager.publishers_updated(topic, topic_type, publishers)
 
     def _foreign_publisher_update(self, topic, publishers):
         topic_type = self._foreign_manager.get_topic_type(topic)
-        
         self._local_manager.publishers_updated(topic, topic_type, publishers)
 
     def spin(self):
         # @todo: is this excessively hitting the master?
-
-        r = rospy.Rate(1.0)
+        r = rospy.Rate(10.0)
 
         while not rospy.is_shutdown():
-            for s in self._local_services:
-                srv_uri = self._local_manager.lookup_service(s)
+            for srv in self._local_services:
+                srv_uri = self._local_manager.lookup_service(srv)
                 if srv_uri:
-                    self._foreign_manager.advertise_service(s, srv_uri)
+                    self._foreign_manager.advertise_service(srv, srv_uri)
                 else:
-                    self._foreign_manager.unadvertise_service(s)
+                    self._foreign_manager.unadvertise_service(srv)
 
-            for s in self._foreign_services:
-                srv_uri = self._foreign_manager.lookup_service(s)
+            for srv in self._foreign_services:
+                srv_uri = self._foreign_manager.lookup_service(srv)
                 if srv_uri:
-                    self._local_manager.advertise_service(s, srv_uri)
+                    self._local_manager.advertise_service(srv, srv_uri)
                 else:
-                    self._local_manager.unadvertise_service(s)
+                    self._local_manager.unadvertise_service(srv)
 
             r.sleep()
 
@@ -88,12 +85,12 @@ class MasterSync(object):
         if self._foreign_manager:
             self._foreign_manager.unsubscribe_all()
 
-def _is_master_up(m):
-    try:
-        m.getUri()
-        return True
-    except Exception:
-        return False
+    def is_master_up(self, master):
+        try:0
+            master.getUri()
+            return 0True
+        except Exception:
+            return False
 
 class _RemoteManager(object):
     def __init__(self, master_uri, new_topics_callback):
