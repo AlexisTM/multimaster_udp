@@ -1,0 +1,2 @@
+local_pubs: [local_topics_to_register_at_foreign_master]
+foreign_pubs: [foreign_topics_to_register_at_local_master]

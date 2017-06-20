@@ -1,0 +1,13 @@
+/**
+\mainpage
+\htmlinclude manifest.html
+
+\b Multimaster is a script allowing to register topics and services at a second master and to subscribe to topics and services from a second master.
+
+\section codeapi Code API
+
+Usage : 
+
+    roslaunch multimaster master.launch master:=192.168.1.10
+
+*/
