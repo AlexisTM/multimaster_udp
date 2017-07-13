@@ -1,22 +1,38 @@
 cmake_minimum_required(VERSION 2.8.3)
 
-project(multimaster)
+project(multimaster_udp)
 
 set(BUILD_DEPS
   rosgraph
   rospy
-  roslib)
+  roslib
+  std_msgs
+  message_generation)
 
 set(RUNTIME_DEPS
   rosgraph
   rospy
-  roslib)
+  roslib
+  message_runtime)
 
 ### Catkin ###
 find_package(catkin REQUIRED COMPONENTS ${BUILD_DEPS})
+
+add_message_files(
+  FILES
+  Msg.msg
+  TopicInfo.msg
+  TopicInfoArray.msg
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
 catkin_package(CATKIN_DEPENDS ${RUNTIME_DEPS}
   LIBRARIES ${PROJECT_NAME})
-
+    
 ### Install Launch Files ###
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch)
