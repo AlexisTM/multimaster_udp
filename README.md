@@ -11,6 +11,60 @@ Multimaster is a originally fork of the original repo on bitbucket (multimaster)
 * Robots (Subscribers/Publishers) calls the service `organizer/topic` with a `multimaster_udp/AdvertiseUDP` message to get the port number
 * The `multimaster_udp/AdvertiseUDP` message consist of a `multimaster_udp/TopicInfo` message you have to fill in, omitting the port, the answer from the `organizer.py` will be the `multimaster_udp/TopicInfo` message with the port filled in.
 
+### USAGE
+
+***Smallest UDP subscriber***
+
+```python
+#!/usr/bin/env python
+import rospy
+
+from multimaster_udp.transport import UDPBroadcastSub
+from std_msgs.msg import String
+
+def callback(data, topic):
+    global counter
+    counter += 1
+    print data, "\n received",counter, "UDP messages from \n", topic
+
+def main():
+    global counter
+    counter = 0
+    rospy.init_node("smallest_client_udp")
+    # publish to the /hello topic
+    sub = UDPBroadcastSub("hello", String, callback=None)
+    # sub = UDPBroadcastSub("hello", String, callback=callback)
+    sub.spin()
+
+if __name__ == '__main__':
+    main()
+```
+
+***Smallest UDP publisher***
+
+```python
+#!/usr/bin/env python
+import rospy
+
+from multimaster_udp.transport import UDPBroadcastPub, UDPBroadcastSub
+from std_msgs.msg import String
+
+def main():
+    rospy.init_node("smallest_server_udp")
+
+    msg = String("World")
+    pub = UDPBroadcastPub("hello", String)
+    
+    rate = rospy.Rate(100)
+    while not rospy.is_shutdown():
+        pub.publish(msg)
+        rate.sleep()
+
+if __name__ == '__main__':
+    main()
+```
+
+
 
 ### Test the current status
 
@@ -18,12 +72,12 @@ Build the repo, then execute:
 
 ```
 roscore &
-rosrun multimaster_udp client_udp.py
+rosrun multimaster_udp organizer.py
 
 # in another terminal
-roscd multimaster_udp
-cd src/multimaster_udp
-./transport.py
+rosrun multimaster_udp smallest_client_udp.py
+# in another terminal
+rosrun multimaster_udp smallest_server_udp.py
 ```
 
 
