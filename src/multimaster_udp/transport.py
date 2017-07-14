@@ -8,10 +8,12 @@ import roslib
 import imp
 import sys
 
+import rospy
 from StringIO import StringIO
 
-from multimaster_udp.msg import Msg
-from multimaster_udp.msg import TopicInfo
+from multimaster_udp.msg import Msg, TopicInfo
+from multimaster_udp.srv import AdvertiseUDP
+
 from rospy.msg import AnyMsg
 
 def get_class(msg_class):
@@ -50,20 +52,26 @@ class UDPMulticast(object):
 
 class UDPBroadcastPub(object):
     """docstring for UDPBroadcastPub"""
-    def __init__(self, port=11411, network_address="192.168.1.1", network_size=8):
+    def __init__(self, topic_name, data_type, network_address="192.168.1.1", network_size=8):
         super(UDPBroadcastPub, self).__init__()
-        self.network = self.make_address(network_address, network_size, port)
+        self.topic = TopicInfo(topic_name, data_type._type, data_type._md5sum, 0)
+        port = self.setup_communications()
 
-        self.cs = socket(AF_INET, SOCK_DGRAM)
-        self.cs.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.cs.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+        self.network = self.__make_address(network_address, network_size, self.topic.port)
         # Use ready once communication to the master is done, also, update the port
         self.ready = True
 
-    def update_port(self, port):
-        self.network = (self.network[0], port)
+    def setup_communications(self):
+        rospy.wait_for_service("organizer/topic")
+        self.topic_srv = rospy.ServiceProxy("organizer/topic", AdvertiseUDP)
+        result = self.topic_srv.call(self.topic)
+        self.topic = result.topic
+        self.cs = socket(AF_INET, SOCK_DGRAM)
+        self.cs.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.cs.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+        print self.topic.port
 
-    def send(self, data):
+    def __send(self, data):
         if data._type == "multimaster_udp/Msg":
             buff = StringIO()
             data.serialize(buff)
@@ -87,10 +95,10 @@ class UDPBroadcastPub(object):
             msg.data = buff.getvalue()
             msg.length = buff.len
 
-            self.send(msg)
+            self.__send(msg)
 
-    def make_address(self, network_address, network_size, port):
-        """ make_address creates a network 
+    def __make_address(self, network_address, network_size, port):
+        """ __make_address creates a network 
         adress and returns it in the str format
 
         192.168.1.12/8 returns 192.168.1.255 
@@ -109,29 +117,39 @@ class UDPBroadcastPub(object):
 class UDPBroadcastSub(object):
     """docstring for UDPBroadcastSub"""
     topics = {}
-    def __init__(self, topic_name="", data_type="", port=11411, callback=None):
+    def __init__(self, topic_name, data_type, callback=None):
         super(UDPBroadcastSub, self).__init__()
-        self.port = port
-        self.data_type = data_type
-        self.topic_name = topic_name
+        self.topic = TopicInfo(topic_name, data_type._type, data_type._md5sum, 0)
+        self.setup_communication()
+
+        if callback is None:
+            self.local_pub = rospy.Publisher(topic_name, data_type, queue_size=10)
+        else: 
+            self.callback = callback
+
+    def callback(self, msg, topic):
+        self.local_pub.publish(msg)
+
+    def setup_communication(self):
+        rospy.wait_for_service("organizer/topic")
+        self.topic_srv = rospy.ServiceProxy("organizer/topic", AdvertiseUDP)
+        result = self.topic_srv.call(self.topic)
+        self.topic = result.topic
         self.cs = socket(AF_INET, SOCK_DGRAM)
         self.cs.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.cs.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        self.cs.bind(('', self.port))
-        self.callback = callback
+        self.cs.bind(('', self.topic.port))
+        print self.topic.port
 
     def spin(self):
         inmsg = Msg()
-        buff = self.cs.recv(65000)
-        inmsg.deserialize(buff)
-        dataClass = get_class(inmsg.data_type)
-        msg = dataClass()
-        msg.deserialize(inmsg.data)
-        if self.callback is None:
-            pass
-            #publish
-        else :
-            self.callback(msg, self.topic_name, self.data_type)
+        while not rospy.is_shutdown():
+            buff = self.cs.recv(65000)
+            inmsg.deserialize(buff)
+            dataClass = get_class(inmsg.data_type)
+            msg = dataClass()
+            msg.deserialize(inmsg.data)
+            self.callback(msg, self.topic)
 
 def test():
     a = UDPBroadcastPub()
