@@ -18,11 +18,18 @@ set(RUNTIME_DEPS
 ### Catkin ###
 find_package(catkin REQUIRED COMPONENTS ${BUILD_DEPS})
 
+catkin_python_setup()
+
 add_message_files(
   FILES
   Msg.msg
   TopicInfo.msg
   TopicInfoArray.msg
+)
+
+add_service_files(
+  FILES
+  AdvertiseUDP.srv
 )
 
 generate_messages(

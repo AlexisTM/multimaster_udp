@@ -1,0 +1,6 @@
+# Returns the new port and topic configuration
+TopicInfo topic
+---
+bool success
+string info
+TopicInfo topic

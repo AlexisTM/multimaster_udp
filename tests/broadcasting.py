@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # https://stackoverflow.com/questions/12607516/python-udp-broadcast-not-sending
+# tcpdump -i eth1 port 54545 -XX
+
 
 from socket import *
 cs = socket(AF_INET, SOCK_DGRAM)

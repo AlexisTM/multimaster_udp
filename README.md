@@ -1,9 +1,36 @@
-# multimaster
+# multimaster_udp
 
-Multimaster is a fork of the original repo on bitbucket from daenny, to avoid to loose it.
+Multimaster is a originally fork of the original repo on bitbucket (multimaster) from daenny. Now it focuses on getting UDP broadcast then UDP multicast message passing.
+
+# UDP broadcast
+
+### Architecture
+
+* One port for each topic/data_type
+* Ports chosen are the default port (11411) +1 for each pair (topic/data_type) 
+* Robots (Subscribers/Publishers) calls the service `organizer/topic` with a `multimaster_udp/AdvertiseUDP` message to get the port number
+* The `multimaster_udp/AdvertiseUDP` message consist of a `multimaster_udp/TopicInfo` message you have to fill in, omitting the port, the answer from the `organizer.py` will be the `multimaster_udp/TopicInfo` message with the port filled in.
 
 
-# Usage
+### Test the current status
+
+Build the repo, then execute:
+
+```
+roscore &
+rosrun multimaster_udp client_udp.py
+
+# in another terminal
+roscd multimaster_udp
+cd src/multimaster_udp
+./transport.py
+```
+
+
+# master_sync 
+Original library 
+
+### Usage
 
 Yaml configuration file
 
@@ -14,7 +41,7 @@ local_services: [local_services_to_register_at_foreigner]
 foreign_services: [foreign_services_to_register_at_local]
 ```
 
-# Example
+### Example
 
 The local master is running a turtle which publish its position and state while using a service to set the destination to travel to.
   
@@ -36,3 +63,8 @@ foreign_pubs: ["/master/map"]
 local_services: ["/turtle0/setGoal"]
 foreign_services: []
 ```
+
+# Credits
+
+- Alexis Paques (@AlexisTM)
+- daenny

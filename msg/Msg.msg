@@ -1,7 +1,7 @@
-# Send the data, by using the ID, the length of the message and the serialized message
-# from it the current IPv4
-uint32 Origin
-int32 ID
+# The API should check if the data_type md5 is the same as yours
+# data_type is often < 32 bytes (the 16 bytes md5sum is written in ascii in 32 bytes)
+string data_type
 # The maximum size is 65k for UDP datagrams
+# The length of the message (data field)
 int16 length
 uint8[] data
