@@ -19,7 +19,7 @@ Multimaster is a originally fork of the original repo on bitbucket (multimaster)
 #!/usr/bin/env python
 import rospy
 
-from multimaster_udp.transport import UDPBroadcastSub
+from multimaster_udp.transport import UDPSubscriber
 from std_msgs.msg import String
 
 def callback(data, topic):
@@ -30,31 +30,31 @@ def callback(data, topic):
 def main():
     global counter
     counter = 0
-    rospy.init_node("smallest_client_udp")
-    # publish to the /hello topic
-    sub = UDPBroadcastSub("hello", String, callback=None)
-    # sub = UDPBroadcastSub("hello", String, callback=callback)
-    sub.spin()
+    rospy.init_node("smallest_subscriber_udp")
+    # if the callback is not defined (None), it will publish locally 
+    # to the equivalent topic.
+    sub = UDPSubscriber("hello", String, callback=None)
+    rospy.spin()
 
 if __name__ == '__main__':
     main()
 ```
 
-***Smallest UDP publisher***
+***Smallest UDP broadcast publisher***
 
 ```python
 #!/usr/bin/env python
 import rospy
 
-from multimaster_udp.transport import UDPBroadcastPub, UDPBroadcastSub
+from multimaster_udp.transport import UDPPublisher
 from std_msgs.msg import String
 
 def main():
-    rospy.init_node("smallest_server_udp")
+    rospy.init_node("smallest_broadcast_publisher_udp")
 
     msg = String("World")
-    pub = UDPBroadcastPub("hello", String)
-    
+    pub = UDPPublisher("hello", String)
+
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():
         pub.publish(msg)
@@ -63,8 +63,6 @@ def main():
 if __name__ == '__main__':
     main()
 ```
-
-
 
 ### Test the current status
 
@@ -75,11 +73,10 @@ roscore &
 rosrun multimaster_udp organizer.py
 
 # in another terminal
-rosrun multimaster_udp smallest_client_udp.py
+rosrun multimaster_udp smallest_subscriber_udp.py
 # in another terminal
-rosrun multimaster_udp smallest_server_udp.py
+rosrun multimaster_udp smallest_publisher_udp.py
 ```
-
 
 # master_sync 
 Original library 
@@ -121,4 +118,4 @@ foreign_services: []
 # Credits
 
 - Alexis Paques (@AlexisTM)
-- daenny
+- daenny (https://bitbucket.org/daenny/multimaster)

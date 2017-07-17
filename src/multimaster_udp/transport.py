@@ -8,13 +8,18 @@ import roslib
 import imp
 import sys
 
+import threading
+
 import rospy
 from StringIO import StringIO
 
 from multimaster_udp.msg import Msg, TopicInfo
 from multimaster_udp.srv import AdvertiseUDP
 
-from rospy.msg import AnyMsg
+if sys.version_info >= (3, 0):
+    import socketserver
+else:
+    import SocketServer as socketserver 
 
 def get_class(msg_class):
     def load_pkg_module(package, directory):
@@ -44,17 +49,19 @@ def get_class(msg_class):
     finally:
         return loaded_class
 
-class UDPMulticast(object):
-    """docstring for UDPMulticast"""
-    def __init__(self, arg):
-        super(UDPMulticast, self).__init__()
-        self.arg = arg
+def UDPSetup(topic_name, data_type):
+    topic = TopicInfo(topic_name, data_type._type, data_type._md5sum, 0)
+    rospy.wait_for_service("organizer/topic")
+    topic_srv = rospy.ServiceProxy("organizer/topic", AdvertiseUDP)
+    result = topic_srv.call(topic)
+    return result.topic
 
-class UDPBroadcastPub(object):
-    """docstring for UDPBroadcastPub"""
+class UDPPublisher(object):
+    """docstring for UDPPublisher"""
     def __init__(self, topic_name, data_type, network_address="192.168.1.1", network_size=8):
-        super(UDPBroadcastPub, self).__init__()
-        self.topic = TopicInfo(topic_name, data_type._type, data_type._md5sum, 0)
+        super(UDPPublisher, self).__init__()
+
+        self.topic = UDPSetup(topic_name, data_type)
         port = self.setup_communications()
 
         self.network = self.__make_address(network_address, network_size, self.topic.port)
@@ -62,14 +69,9 @@ class UDPBroadcastPub(object):
         self.ready = True
 
     def setup_communications(self):
-        rospy.wait_for_service("organizer/topic")
-        self.topic_srv = rospy.ServiceProxy("organizer/topic", AdvertiseUDP)
-        result = self.topic_srv.call(self.topic)
-        self.topic = result.topic
         self.cs = socket(AF_INET, SOCK_DGRAM)
         self.cs.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         self.cs.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        print self.topic.port
 
     def __send(self, data):
         if data._type == "multimaster_udp/Msg":
@@ -89,12 +91,10 @@ class UDPBroadcastPub(object):
         if self.ready:
             msg = Msg()
             msg.data_type = rosmsg._type
-            
             buff = StringIO()
             rosmsg.serialize(buff)
             msg.data = buff.getvalue()
             msg.length = buff.len
-
             self.__send(msg)
 
     def __make_address(self, network_address, network_size, port):
@@ -114,53 +114,76 @@ class UDPBroadcastPub(object):
             current -= 1
         return (".".join(map(str, splitted)), port)
 
-class UDPBroadcastSub(object):
-    """docstring for UDPBroadcastSub"""
-    topics = {}
+class UDPHandlerServer(socketserver.UDPServer):
+    """docstring for UDPHandlerServer"""
+    # IP limitation
+    max_packet_size = 64000
+    allow_reuse_address = True
+
+    def __init__(self, callback, *args, **kwargs):
+        socketserver.UDPServer.__init__(self, *args, **kwargs)
+        self.callback = callback
+
+    def finish_request(self, request, client_address):
+        self.callback(request, client_address)
+
+class UDPSubscriber(object):
+    """docstring for UDPSubscriber"""
     def __init__(self, topic_name, data_type, callback=None):
-        super(UDPBroadcastSub, self).__init__()
-        self.topic = TopicInfo(topic_name, data_type._type, data_type._md5sum, 0)
-        self.setup_communication()
+        self.data_type = data_type
+        self.topic = UDPSetup(topic_name, data_type)
+
+        print self.topic
 
         if callback is None:
             self.local_pub = rospy.Publisher(topic_name, data_type, queue_size=10)
         else: 
             self.callback = callback
 
-    def callback(self, msg, topic):
-        self.local_pub.publish(msg)
+        self.server = UDPHandlerServer(self.__handle_callback, ("0.0.0.0", self.topic.port), socketserver.BaseRequestHandler)
+        self.t = threading.Thread(target = self.server.serve_forever)
+        self.t.start()
 
-    def setup_communication(self):
-        rospy.wait_for_service("organizer/topic")
-        self.topic_srv = rospy.ServiceProxy("organizer/topic", AdvertiseUDP)
-        result = self.topic_srv.call(self.topic)
-        self.topic = result.topic
-        self.cs = socket(AF_INET, SOCK_DGRAM)
-        self.cs.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-        self.cs.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        self.cs.bind(('', self.topic.port))
-        print self.topic.port
+        rospy.on_shutdown(self.shutdown)
 
-    def spin(self):
+    def __handle_callback(self, request, client_address):
         inmsg = Msg()
-        while not rospy.is_shutdown():
-            buff = self.cs.recv(65000)
-            inmsg.deserialize(buff)
-            dataClass = get_class(inmsg.data_type)
-            msg = dataClass()
+        inmsg.deserialize(request[0])
+        if inmsg.data_type == self.topic.data_type:
+            msg = self.data_type()
             msg.deserialize(inmsg.data)
             self.callback(msg, self.topic)
 
-def test():
-    a = UDPBroadcastPub()
-    print a.network
+        # else error or 
+        # Dynamic message loading
+        # dataClass = get_class(inmsg.data_type)
+        # msg = dataClass()
 
-    msg2 = TopicInfo()
-    print "Sending TopicInfo"
-    a.publish(msg2)
+    def callback(self, msg, topic):
+        self.local_pub.publish(msg)
+
+    def shutdown(self):
+        self.server.shutdown()
+
+def main():
+    rospy.init_node("udp_subscriber")
+    from std_msgs.msg import String
+    udpsub = UDPSubscriber("hello", String)
+    rate = rospy.Rate(1)
+
+    count = 0
+    while not rospy.is_shutdown():
+        rate.sleep()
+        print "hey"
+
+        if count == 3:
+            udpsub.shutdown()
+            return 
+
+        count += 1
+
 
 if __name__ == '__main__':
-    test()
-
+    main()
 
         
