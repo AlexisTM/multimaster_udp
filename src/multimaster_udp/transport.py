@@ -133,8 +133,6 @@ class UDPSubscriber(object):
         self.data_type = data_type
         self.topic = UDPSetup(topic_name, data_type)
 
-        print self.topic
-
         if callback is None:
             self.local_pub = rospy.Publisher(topic_name, data_type, queue_size=10)
         else: 
@@ -164,26 +162,3 @@ class UDPSubscriber(object):
 
     def shutdown(self):
         self.server.shutdown()
-
-def main():
-    rospy.init_node("udp_subscriber")
-    from std_msgs.msg import String
-    udpsub = UDPSubscriber("hello", String)
-    rate = rospy.Rate(1)
-
-    count = 0
-    while not rospy.is_shutdown():
-        rate.sleep()
-        print "hey"
-
-        if count == 3:
-            udpsub.shutdown()
-            return 
-
-        count += 1
-
-
-if __name__ == '__main__':
-    main()
-
-        
