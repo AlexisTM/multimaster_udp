@@ -2,12 +2,29 @@
 \mainpage
 \htmlinclude manifest.html
 
-\b Multimaster is a script allowing to register topics and services at a second master and to subscribe to topics and services from a second master.
+\b Multimaster_udp is a collection of tools for multiple master optimization. 
 
-\section codeapi Code API
+It implements UDP broadcasting transport layer and a script (TCP for the moment) to transfer local topics to a remote ROS machine. 
 
-Usage : 
+\section usage_udp Usage for UDP Broadcasting
+
+UDP Broadcasting:
+
+    roscore &
+    rosrun multimaster_udp organizer.py
+
+    # in another terminal
+    rosrun multimaster_udp smallest_subscriber_udp.py
+    # in another terminal
+    rosrun multimaster_udp smallest_publisher_udp.py
+
+
+\section usage_master Usage for master_sync.py
+
+master_sync API:
 
     roslaunch multimaster master.launch master:=192.168.1.10
+
+\todo Transform the multimaster to UDP broadcasting.
 
 */
