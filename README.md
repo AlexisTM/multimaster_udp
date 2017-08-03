@@ -19,7 +19,7 @@ Multimaster is a originally fork of the original repo on bitbucket (multimaster)
 #!/usr/bin/env python
 import rospy
 
-from multimaster_udp.transport import UDPSubscriber
+from multimaster_udp.transport import BroadcastSubscriber
 from std_msgs.msg import String
 
 def callback(data, topic):
@@ -33,7 +33,7 @@ def main():
     rospy.init_node("smallest_subscriber_udp")
     # if the callback is not defined (None), it will publish locally 
     # to the equivalent topic.
-    sub = UDPSubscriber("hello", String, callback=None)
+    sub = BroadcastSubscriber("hello", String, callback=None)
     rospy.spin()
 
 if __name__ == '__main__':
@@ -46,14 +46,14 @@ if __name__ == '__main__':
 #!/usr/bin/env python
 import rospy
 
-from multimaster_udp.transport import UDPPublisher
+from multimaster_udp.transport import BroadcastPublisher
 from std_msgs.msg import String
 
 def main():
     rospy.init_node("smallest_broadcast_publisher_udp")
 
     msg = String("World")
-    pub = UDPPublisher("hello", String)
+    pub = BroadcastPublisher("hello", String)
 
     rate = rospy.Rate(100)
     while not rospy.is_shutdown():

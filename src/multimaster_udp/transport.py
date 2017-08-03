@@ -29,6 +29,7 @@ def UDPSetup(topic_name, data_type, port=None):
 
 class BroadcastPublisher(object):
     """docstring for BroadcastPublisher"""
+    max_packet_size = 65496
     def __init__(self, topic_name, data_type, network_address="192.168.1.1", network_size=8, port=None):
         super(BroadcastPublisher, self).__init__()
         self.n_sent = 0
@@ -86,7 +87,7 @@ class BroadcastPublisher(object):
 class UDPHandlerServer(socketserver.UDPServer):
     """docstring for UDPHandlerServer"""
     # IP limitation
-    max_packet_size = 64000
+    max_packet_size = 65496
     allow_reuse_address = True
 
     def __init__(self, callback, *args, **kwargs):
