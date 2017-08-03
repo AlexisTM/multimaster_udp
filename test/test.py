@@ -11,30 +11,23 @@ def main():
 
     pub = BroadcastPublisher("hello", String)
     
+    print pub.topic.port
+    # max_size = 66000
+    # string = ""
+    # for i in xrange(max_size):
+    #     if not i % 100:
+    #         print max_size-i
+    #     try:
+    #         string = "".join(["W"]*(max_size-i))
+    #         msg = String(string)
+    #         #pub.publish(msg)
+    #         print len(string)
+    #         return
+    #     except:
+    #         pass
 
+    pub.publish(String("".join(["W"]*65000)))
 
-    max_size = 66000
-    string = ""
-    for i in xrange(max_size):
-        if not i % 100:
-            print max_size-i
-        try:
-            string = "".join(["W"]*(max_size-i))
-            msg = String(string)
-            pub.publish(msg)
-            print len(string)
-            return
-        except:
-            pass
-
-
-
-    pub.publish(String("".join(["W"]*65496)))
-    pub.publish(String("".join(["W"]*65496)))
-    pub.publish(String("".join(["W"]*65496)))
-    pub.publish(String("".join(["W"]*65496)))
-    pub.publish(String("".join(["W"]*65496)))
-
-    print len(string)
+    #print len(string)
 if __name__ == '__main__':
     main()
