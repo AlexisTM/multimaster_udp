@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 
-from multimaster_udp.transport import BroadcastSubscriber
+from multimaster_udp.transport import BroadcastSubscriber6
 from std_msgs.msg import String
 
 def callback(data, topic):
@@ -15,7 +15,7 @@ def main():
     rospy.init_node("smallest_subscriber_udp", anonymous=True)
     # if the callback is not defined (None), it will publish locally 
     # to the equivalent topic.
-    sub = BroadcastSubscriber("hello", String, callback=callback)
+    sub = BroadcastSubscriber6("hello", String, callback=callback)
     
     print sub.topic.port
     rospy.spin()

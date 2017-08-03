@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 
-from multimaster_udp.transport import BroadcastPublisher
+from multimaster_udp.transport import BroadcastPublisher6
 from std_msgs.msg import String
 
 import loremipsum
@@ -9,7 +9,7 @@ import loremipsum
 def main():
     rospy.init_node("smallest_broadcast_publisher_udp")
 
-    pub = BroadcastPublisher("hello", String)
+    pub = BroadcastPublisher6("hello", String)
     
     print pub.topic.port
     # max_size = 66000
@@ -25,8 +25,31 @@ def main():
     #         return
     #     except:
     #         pass
+    #         
+    #         
+    r = rospy.Rate(25)
+    divider = 1000
+    max_size = 100000/divider
+    min_size = 17000/divider
+    string = ""
+    for i in xrange(min_size,max_size):
+        i = i*divider
+        if not i % 1000:
+            print i
+        if rospy.is_shutdown(): return
+        try:
+            string = "".join(["W"]*(i))
+            msg = String(string)
+            pub.publish(msg)
+            #print len(string)
+            r.sleep()
+            #return
+        except:
+            print "FAIL", len(string)
+            return
+            pass
 
-    pub.publish(String("".join(["W"]*65000)))
+    #pub.publish(String("".join(["W"]*400)))
 
     #print len(string)
 if __name__ == '__main__':
