@@ -1,5 +1,5 @@
 # name of the topic with the namespace 
-string topic_name
+string name
 # the data_type sent
 string data_type
 # the md5sum of the data_type

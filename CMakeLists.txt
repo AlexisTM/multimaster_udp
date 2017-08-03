@@ -23,6 +23,7 @@ catkin_python_setup()
 add_message_files(
   FILES
   Msg.msg
+  Fragment.msg
   TopicInfo.msg
   TopicInfoArray.msg
 )

@@ -3,66 +3,37 @@
 # https://stackoverflow.com/questions/15962119/using-bytearray-with-socket-recv-into
 from socket import *
 
-# Dynamic load msg classes
-import roslib
-import imp
 import sys
-
 import threading
 
 import rospy
 from StringIO import StringIO
 
+from multimaster_udp.dynamic_load import get_class
+
 from multimaster_udp.msg import Msg, TopicInfo
 from multimaster_udp.srv import AdvertiseUDP
 
-if sys.version_info >= (3, 0):
-    import socketserver
-else:
-    import SocketServer as socketserver 
+if sys.version_info >= (3, 0): import socketserver
+else: import SocketServer as socketserver 
 
-def get_class(msg_class):
-    def load_pkg_module(package, directory):
-        #check if its in the python path
-        path = sys.path
-        try:
-            imp.find_module(package)
-        except:
-            roslib.load_manifest(package)
-        try:
-            m = __import__( package + '.' + directory )
-        except:
-            rospy.logerr( "Cannot import package : %s"% package )
-            rospy.logerr( "sys.path was " + str(path) )
-            return None
-        return m
+def UDPSetup(topic_name, data_type, port=None):
+    if port is None:
+        topic = TopicInfo(topic_name, data_type._type, data_type._md5sum, 0)
+        rospy.wait_for_service("organizer/topic")
+        topic_srv = rospy.ServiceProxy("organizer/topic", AdvertiseUDP)
+        result = topic_srv.call(topic)
+        return result.topic
+    else:
+        return TopicInfo(topic_name, data_type._type, data_type._md5sum, port)
 
-    def load_message(package, message):
-        m = load_pkg_module(package, 'msg')
-        m2 = getattr(m, 'msg')
-        return getattr(m2, message)
-
-    try:
-        loaded_class = load_message(*msg_class.split('/'))
-    except:
-        loaded_class = None
-    finally:
-        return loaded_class
-
-def UDPSetup(topic_name, data_type):
-    topic = TopicInfo(topic_name, data_type._type, data_type._md5sum, 0)
-    rospy.wait_for_service("organizer/topic")
-    topic_srv = rospy.ServiceProxy("organizer/topic", AdvertiseUDP)
-    result = topic_srv.call(topic)
-    return result.topic
-
-class UDPPublisher(object):
-    """docstring for UDPPublisher"""
-    def __init__(self, topic_name, data_type, network_address="192.168.1.1", network_size=8):
-        super(UDPPublisher, self).__init__()
-
-        self.topic = UDPSetup(topic_name, data_type)
-        port = self.setup_communications()
+class BroadcastPublisher(object):
+    """docstring for BroadcastPublisher"""
+    def __init__(self, topic_name, data_type, network_address="192.168.1.1", network_size=8, port=None):
+        super(BroadcastPublisher, self).__init__()
+        self.n_sent = 0
+        self.topic = UDPSetup(topic_name, data_type, port)
+        self.setup_communications()
 
         self.network = self.__make_address(network_address, network_size, self.topic.port)
         # Use ready once communication to the master is done, also, update the port
@@ -78,9 +49,7 @@ class UDPPublisher(object):
             buff = StringIO()
             data.serialize(buff)
             self.cs.sendto(buff.getvalue(), self.network)
-        else: 
-            # Wrong msg type
-            pass
+        else: pass # Wrong msg type
 
     def publish(self, rosmsg):
         """
@@ -90,11 +59,11 @@ class UDPPublisher(object):
         """
         if self.ready:
             msg = Msg()
-            msg.data_type = rosmsg._type
+            if self.topic.data_type != rosmsg._type:
+                return # Fail, wrong message type
             buff = StringIO()
             rosmsg.serialize(buff)
             msg.data = buff.getvalue()
-            msg.length = buff.len
             self.__send(msg)
 
     def __make_address(self, network_address, network_size, port):
@@ -127,11 +96,12 @@ class UDPHandlerServer(socketserver.UDPServer):
     def finish_request(self, request, client_address):
         self.callback(request, client_address)
 
-class UDPSubscriber(object):
-    """docstring for UDPSubscriber"""
-    def __init__(self, topic_name, data_type, callback=None):
+class BroadcastSubscriber(object):
+    """docstring for BroadcastSubscriber"""
+    def __init__(self, topic_name, data_type, callback=None, port=None):
+
         self.data_type = data_type
-        self.topic = UDPSetup(topic_name, data_type)
+        self.topic = UDPSetup(topic_name, data_type, port)
 
         if callback is None:
             self.local_pub = rospy.Publisher(topic_name, data_type, queue_size=10)
@@ -147,15 +117,12 @@ class UDPSubscriber(object):
     def __handle_callback(self, request, client_address):
         inmsg = Msg()
         inmsg.deserialize(request[0])
-        if inmsg.data_type == self.topic.data_type:
+        if inmsg.status & Msg.IS_FRAGMENT:
+            pass  # Save data to later deserialization
+        else: 
             msg = self.data_type()
             msg.deserialize(inmsg.data)
             self.callback(msg, self.topic)
-
-        # else error or 
-        # Dynamic message loading
-        # dataClass = get_class(inmsg.data_type)
-        # msg = dataClass()
 
     def callback(self, msg, topic):
         self.local_pub.publish(msg)
