@@ -4,6 +4,7 @@ import rospy
 from multimaster_udp.transport import BroadcastPublisher6
 from std_msgs.msg import String
 
+
 def main():
     rospy.init_node("smallest_broadcast_publisher_udp")
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import roslib; roslib.load_manifest('multimaster')
+import roslib
+roslib.load_manifest('multimaster')
 import roslib.network
 
 import threading
@@ -22,30 +23,35 @@ from rosgraph.xmlrpc import XmlRpcNode, XmlRpcHandler
 
 import sys
 
+
 class MasterSync(object):
+
     def __init__(self):
-        local_uri   = rosgraph.get_master_uri()
+        local_uri = rosgraph.get_master_uri()
         foreign_uri = rospy.get_param('~foreign_master', None)
         if not foreign_uri:
             raise Exception('foreign_master URI not specified')
 
-        local_pubs   = rospy.get_param('~local_pubs',   [])
+        local_pubs = rospy.get_param('~local_pubs',   [])
         foreign_pubs = rospy.get_param('~foreign_pubs', [])
 
-        self._local_services   = rospy.get_param('~local_services',   [])
+        self._local_services = rospy.get_param('~local_services',   [])
         self._foreign_services = rospy.get_param('~foreign_services', [])
 
-        self.foreign_master = rosgraph.Master(rospy.get_name(), master_uri=foreign_uri)
+        self.foreign_master = rosgraph.Master(
+            rospy.get_name(), master_uri=foreign_uri)
         r = rospy.Rate(1)
         while not self.is_master_up(self.foreign_master) and not rospy.is_shutdown():
             rospy.logdebug('Waiting for foreign master to come up...')
             r.sleep()
 
-        self._local_manager   = None
+        self._local_manager = None
         self._foreign_manager = None
         if not rospy.is_shutdown():
-            self._local_manager   = _RemoteManager(local_uri,   self._local_publisher_update)
-            self._foreign_manager = _RemoteManager(foreign_uri, self._foreign_publisher_update)
+            self._local_manager = _RemoteManager(
+                local_uri,   self._local_publisher_update)
+            self._foreign_manager = _RemoteManager(
+                foreign_uri, self._foreign_publisher_update)
             for t in local_pubs:
                 self._local_manager.subscribe(t)
             for t in foreign_pubs:
@@ -86,18 +92,22 @@ class MasterSync(object):
             self._foreign_manager.unsubscribe_all()
 
     def is_master_up(self, master):
-        try:0
+        try:
+            0
             master.getUri()
             return 0True
         except Exception:
             return False
 
+
 class _RemoteManager(object):
+
     def __init__(self, master_uri, new_topics_callback):
-        self.master_uri          = master_uri
+        self.master_uri = master_uri
         self.new_topics_callback = new_topics_callback
 
-        name = rosgraph.names.ns_join(rosgraph.names.get_ros_namespace(), rosgraph.names.anonymous_name('master_sync'))
+        name = rosgraph.names.ns_join(rosgraph.names.get_ros_namespace(
+        ), rosgraph.names.anonymous_name('master_sync'))
         self.master = rosgraph.Master(name, master_uri=self.master_uri)
 
         self._lock = threading.RLock()
@@ -108,7 +118,8 @@ class _RemoteManager(object):
         self._pubs = {}
         self._srvs = {}
 
-        self._external_node = XmlRpcNode(rpc_handler=_TopicPubListenerHandler(self._new_topics))
+        self._external_node = XmlRpcNode(
+            rpc_handler=_TopicPubListenerHandler(self._new_topics))
         self._external_node.start()
 
         timeout_t = time.time() + 5.0
@@ -129,7 +140,8 @@ class _RemoteManager(object):
 
     def subscribe(self, topic):
         topic = self.resolve(topic)
-        publishers = self.master.registerSubscriber(topic, '*', self._external_node.uri)        
+        publishers = self.master.registerSubscriber(
+            topic, '*', self._external_node.uri)
         self._subs[(topic, self._external_node.uri)] = self.master
         self._new_topics(topic, publishers)
 
@@ -142,24 +154,28 @@ class _RemoteManager(object):
             for t, uri in self._pubs.keys():
                 if t == resolved and uri not in uris_set:
                     self.unadvertise(t, uri)
-    
+
             # Register new publishers
             for uri in uris:
                 if (resolved, uri) not in self._pubs:
-                    # Registrations need to be anonymous so master doesn't kill us if there's a duplicate name
-                    rospy.loginfo('Registering (%s, %s) on master %s' % (resolved, uri, self.master_uri))
+                    # Registrations need to be anonymous so master doesn't kill
+                    # us if there's a duplicate name
+                    rospy.loginfo('Registering (%s, %s) on master %s' %
+                                  (resolved, uri, self.master_uri))
                     anon_name = rosgraph.names.anonymous_name('master_sync')
-                    master = rosgraph.masterapi.Master(anon_name, master_uri=self.master_uri)
+                    master = rosgraph.masterapi.Master(
+                        anon_name, master_uri=self.master_uri)
                     master.registerPublisher(resolved, topic_type, uri)
-    
+
                     self._pubs[(resolved, uri)] = master
 
     def unadvertise(self, topic, uri):
         with self._lock:
             if (topic, uri) in self._pubs:
                 master = self._pubs[(topic, uri)]
-    
-                rospy.loginfo('Unregistering (%s, %s) from master %s' % (topic, uri, master.master_uri))
+
+                rospy.loginfo('Unregistering (%s, %s) from master %s' %
+                              (topic, uri, master.master_uri))
                 master.unregisterPublisher(topic, uri)
                 del self._pubs[(topic, uri)]
 
@@ -171,16 +187,19 @@ class _RemoteManager(object):
             return None
 
     def advertise_service(self, service_name, uri):
-        # These registrations need to be anonymous so the master doesn't kill us if there is a duplicate name
+        # These registrations need to be anonymous so the master doesn't kill
+        # us if there is a duplicate name
         anon_name = rosgraph.names.anonymous_name('master_sync')
-        master = rosgraph.masterapi.Master(anon_name, master_uri=self.master_uri)
+        master = rosgraph.masterapi.Master(
+            anon_name, master_uri=self.master_uri)
 
         if service_name in self._srvs:
             if self._srvs[service_name][0] == uri:
                 return
             self.unadvertise_service(service_name)
 
-        rospy.loginfo('Registering service (%s, %s) on master %s' % (service_name, uri, master.master_uri))
+        rospy.loginfo('Registering service (%s, %s) on master %s' %
+                      (service_name, uri, master.master_uri))
 
         fake_api = 'http://%s:0' % roslib.network.get_host_name()
         master.registerService(service_name, uri, fake_api)
@@ -190,8 +209,9 @@ class _RemoteManager(object):
     def unadvertise_service(self, service_name):
         if service_name in self._srvs:
             uri, master = self._srvs[service_name]
-            
-            rospy.loginfo('Unregistering service (%s, %s) from master %s' % (service_name, uri, master.master_uri))
+
+            rospy.loginfo('Unregistering service (%s, %s) from master %s' % (
+                service_name, uri, master.master_uri))
             master.unregisterService(service_name, uri)
 
             del self._srvs[service_name]
@@ -208,16 +228,20 @@ class _RemoteManager(object):
             self.unadvertise_service(service)
 
     def _new_topics(self, topic, publishers):
-        self.new_topics_callback(topic, [p for p in publishers if (topic, p) not in self._pubs])
+        self.new_topics_callback(
+            topic, [p for p in publishers if (topic, p) not in self._pubs])
+
 
 def is_publishers_list(paramName):
     return ('is_publishers_list', paramName)
 
+
 class _TopicPubListenerHandler(XmlRpcHandler):
+
     def __init__(self, publisher_update_callback):
         super(_TopicPubListenerHandler, self).__init__()
-        
-        self.uri                       = None
+
+        self.uri = None
         self.publisher_update_callback = publisher_update_callback
 
     def _ready(self, uri):
@@ -226,16 +250,20 @@ class _TopicPubListenerHandler(XmlRpcHandler):
     def _custom_validate(self, validation, param_name, param_value, caller_id):
         if validation == 'is_publishers_list':
             if not type(param_value) == list:
-                raise ParameterInvalid("ERROR: param [%s] must be a list"%param_name)
+                raise ParameterInvalid(
+                    "ERROR: param [%s] must be a list" % param_name)
             for v in param_value:
                 if not isinstance(v, basestring):
-                    raise ParameterInvalid("ERROR: param [%s] must be a list of strings"%param_name)
+                    raise ParameterInvalid(
+                        "ERROR: param [%s] must be a list of strings" % param_name)
                 parsed = urlparse.urlparse(v)
-                if not parsed[0] or not parsed[1]: #protocol and host
-                    raise ParameterInvalid("ERROR: param [%s] does not contain valid URLs [%s]"%(param_name, v))
+                if not parsed[0] or not parsed[1]:  # protocol and host
+                    raise ParameterInvalid(
+                        "ERROR: param [%s] does not contain valid URLs [%s]" % (param_name, v))
             return param_value
         else:
-            raise ParameterInvalid("ERROR: param [%s] has an unknown validation type [%s]"%(param_name, validation))
+            raise ParameterInvalid(
+                "ERROR: param [%s] has an unknown validation type [%s]" % (param_name, validation))
 
     @apivalidate([])
     def getBusStats(self, caller_id):
@@ -246,12 +274,12 @@ class _TopicPubListenerHandler(XmlRpcHandler):
     def getBusInfo(self, caller_id):
         # not supported
         return 1, '', [[], [], []]
-    
+
     @apivalidate('')
     def getMasterUri(self, caller_id):
         # not supported
         return 1, '', ''
-        
+
     @apivalidate(0, (None, ))
     def shutdown(self, caller_id, msg=''):
         return -1, 'not authorized', 0
@@ -269,7 +297,7 @@ class _TopicPubListenerHandler(XmlRpcHandler):
     @apivalidate([])
     def getPublications(self, caller_id):
         return 1, 'publications', [[], []]
-    
+
     @apivalidate(-1, (global_name('parameter_key'), None))
     def paramUpdate(self, caller_id, parameter_key, parameter_value):
         # not supported
@@ -278,7 +306,7 @@ class _TopicPubListenerHandler(XmlRpcHandler):
     @apivalidate(-1, (is_topic('topic'), is_publishers_list('publishers')))
     def publisherUpdate(self, caller_id, topic, publishers):
         self.publisher_update_callback(topic, publishers)
-    
+
     @apivalidate([], (is_topic('topic'), non_empty('protocols')))
     def requestTopic(self, caller_id, topic, protocols):
         return 0, 'no supported protocol implementations', []
@@ -286,14 +314,14 @@ class _TopicPubListenerHandler(XmlRpcHandler):
 if __name__ == '__main__':
     try:
         rospy.init_node('master_sync')
-        
+
         sync = MasterSync()
         sync.spin()
     except KeyboardInterrupt:
         pass
     except Exception as ex:
         import traceback
-        rospy.logfatal(traceback.format_exc()) 
+        rospy.logfatal(traceback.format_exc())
         rospy.logfatal(str(ex))
         time.sleep(1.0)
         sys.exit(1)

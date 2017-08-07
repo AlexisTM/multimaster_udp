@@ -6,6 +6,7 @@ import rospy
 from multimaster_udp.msg import TopicInfoArray, TopicInfo
 from multimaster_udp.srv import AdvertiseUDP
 
+
 class BroadcastMaster(object):
     """docstring for BroadcastMaster
 
@@ -17,7 +18,7 @@ class BroadcastMaster(object):
               port: 11411,
               data_type: "std_msgs/String",
               md5sum: "71f920fa275127a7b60fa4d4d41432a3"}]
-    
+
     Lookup table: {hash(name,type,md5): port}
     """
     INITIAL_UDP_PORT = 11411
@@ -27,7 +28,8 @@ class BroadcastMaster(object):
 
     def __init__(self):
         super(BroadcastMaster, self).__init__()
-        rospy.Service("organizer/topic", AdvertiseUDP, self.__advertise_callback)
+        rospy.Service("organizer/topic", AdvertiseUDP,
+                      self.__advertise_callback)
 
     def __advertise_callback(self, srv_msg):
         result = self.add(srv_msg.topic)
@@ -46,6 +48,7 @@ class BroadcastMaster(object):
             return topic
         else:
             return self.lookup[h]
+
 
 def main():
     organizer = BroadcastMaster()

@@ -14,8 +14,11 @@ from multimaster_udp.dynamic_load import get_class
 from multimaster_udp.msg import Msg, TopicInfo
 from multimaster_udp.srv import AdvertiseUDP
 
-if sys.version_info >= (3, 0): import socketserver
-else: import SocketServer as socketserver 
+if sys.version_info >= (3, 0):
+    import socketserver
+else:
+    import SocketServer as socketserver
+
 
 def UDPSetup(topic_name, data_type, port=None):
     if port is None:
@@ -27,17 +30,21 @@ def UDPSetup(topic_name, data_type, port=None):
     else:
         return TopicInfo(topic_name, data_type._type, data_type._md5sum, port)
 
+
 class BroadcastPublisher(object):
     """docstring for BroadcastPublisher"""
     max_packet_size = 65496
+
     def __init__(self, topic_name, data_type, network_address="192.168.1.1", network_size=8, port=None):
         super(BroadcastPublisher, self).__init__()
         self.n_sent = 0
         self.topic = UDPSetup(topic_name, data_type, port)
         self.setup_communications()
 
-        self.network = self.__make_address(network_address, network_size, self.topic.port)
-        # Use ready once communication to the master is done, also, update the port
+        self.network = self.__make_address(
+            network_address, network_size, self.topic.port)
+        # Use ready once communication to the master is done, also, update the
+        # port
         self.ready = True
 
     def setup_communications(self):
@@ -50,7 +57,8 @@ class BroadcastPublisher(object):
             buff = StringIO()
             data.serialize(buff)
             self.cs.sendto(buff.getvalue(), self.network)
-        else: pass # Wrong msg type
+        else:
+            pass  # Wrong msg type
 
     def publish(self, rosmsg):
         """
@@ -61,7 +69,7 @@ class BroadcastPublisher(object):
         if self.ready:
             msg = Msg()
             if self.topic.data_type != rosmsg._type:
-                return # Fail, wrong message type
+                return  # Fail, wrong message type
             buff = StringIO()
             rosmsg.serialize(buff)
             msg.data = buff.getvalue()
@@ -78,7 +86,7 @@ class BroadcastPublisher(object):
         while network_size > 0 and current >= 0:
             if network_size >= 8:
                 splitted[current] = 255
-            else :
+            else:
                 splitted[current] = splitted[current] | (2**network_size-1)
             network_size -= 8
             current -= 1
@@ -88,6 +96,7 @@ class BroadcastPublisher(object):
 class BroadcastPublisher6(object):
     """docstring for BroadcastPublisher6"""
     max_packet_size = 65496
+
     def __init__(self, topic_name, data_type, network_address="ff02::1", network_size=8, port=None):
         super(BroadcastPublisher6, self).__init__()
         self.n_sent = 0
@@ -95,7 +104,8 @@ class BroadcastPublisher6(object):
         self.setup_communications()
 
         self.network = (network_address, self.topic.port)
-        # Use ready once communication to the master is done, also, update the port
+        # Use ready once communication to the master is done, also, update the
+        # port
         self.ready = True
 
     def setup_communications(self):
@@ -108,7 +118,8 @@ class BroadcastPublisher6(object):
             buff = StringIO()
             data.serialize(buff)
             self.cs.sendto(buff.getvalue(), self.network)
-        else: pass # Wrong msg type
+        else:
+            pass  # Wrong msg type
 
     def publish(self, rosmsg):
         """
@@ -119,7 +130,7 @@ class BroadcastPublisher6(object):
         if self.ready:
             msg = Msg()
             if self.topic.data_type != rosmsg._type:
-                return # Fail, wrong message type
+                return  # Fail, wrong message type
             buff = StringIO()
             rosmsg.serialize(buff)
             msg.data = buff.getvalue()
@@ -136,11 +147,12 @@ class BroadcastPublisher6(object):
         while network_size > 0 and current >= 0:
             if network_size >= 8:
                 splitted[current] = 255
-            else :
+            else:
                 splitted[current] = splitted[current] | (2**network_size-1)
             network_size -= 8
             current -= 1
         return (".".join(map(str, splitted)), port)
+
 
 class UDPHandlerServer(socketserver.UDPServer):
     """docstring for UDPHandlerServer"""
@@ -155,20 +167,24 @@ class UDPHandlerServer(socketserver.UDPServer):
     def finish_request(self, request, client_address):
         self.callback(request, client_address)
 
+
 class BroadcastSubscriber(object):
     """docstring for BroadcastSubscriber"""
+
     def __init__(self, topic_name, data_type, callback=None, port=None):
 
         self.data_type = data_type
         self.topic = UDPSetup(topic_name, data_type, port)
 
         if callback is None:
-            self.local_pub = rospy.Publisher(topic_name, data_type, queue_size=10)
-        else: 
+            self.local_pub = rospy.Publisher(
+                topic_name, data_type, queue_size=10)
+        else:
             self.callback = callback
 
-        self.server = UDPHandlerServer(self.__handle_callback, ("0.0.0.0", self.topic.port), socketserver.BaseRequestHandler)
-        self.t = threading.Thread(target = self.server.serve_forever)
+        self.server = UDPHandlerServer(
+            self.__handle_callback, ("0.0.0.0", self.topic.port), socketserver.BaseRequestHandler)
+        self.t = threading.Thread(target=self.server.serve_forever)
         self.t.start()
 
         rospy.on_shutdown(self.shutdown)
@@ -178,7 +194,7 @@ class BroadcastSubscriber(object):
         inmsg.deserialize(request[0])
         if inmsg.status & Msg.IS_FRAGMENT:
             pass  # Save data to later deserialization
-        else: 
+        else:
             msg = self.data_type()
             msg.deserialize(inmsg.data)
             self.callback(msg, self.topic)
@@ -188,8 +204,6 @@ class BroadcastSubscriber(object):
 
     def shutdown(self):
         self.server.shutdown()
-
-
 
 
 class UDPHandlerServer6(socketserver.UDPServer):
@@ -206,20 +220,24 @@ class UDPHandlerServer6(socketserver.UDPServer):
     def finish_request(self, request, client_address):
         self.callback(request, client_address)
 
+
 class BroadcastSubscriber6(object):
     """docstring for BroadcastSubscriber6"""
+
     def __init__(self, topic_name, data_type, callback=None, port=None):
 
         self.data_type = data_type
         self.topic = UDPSetup(topic_name, data_type, port)
 
         if callback is None:
-            self.local_pub = rospy.Publisher(topic_name, data_type, queue_size=10)
-        else: 
+            self.local_pub = rospy.Publisher(
+                topic_name, data_type, queue_size=10)
+        else:
             self.callback = callback
 
-        self.server = UDPHandlerServer6(self.__handle_callback, ("::", self.topic.port), socketserver.BaseRequestHandler)
-        self.t = threading.Thread(target = self.server.serve_forever)
+        self.server = UDPHandlerServer6(
+            self.__handle_callback, ("::", self.topic.port), socketserver.BaseRequestHandler)
+        self.t = threading.Thread(target=self.server.serve_forever)
         self.t.start()
 
         rospy.on_shutdown(self.shutdown)
@@ -229,7 +247,7 @@ class BroadcastSubscriber6(object):
         inmsg.deserialize(request[0])
         if inmsg.status & Msg.IS_FRAGMENT:
             pass  # Save data to later deserialization
-        else: 
+        else:
             msg = self.data_type()
             msg.deserialize(inmsg.data)
             self.callback(msg, self.topic)

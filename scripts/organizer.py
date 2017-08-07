@@ -6,6 +6,7 @@ import rospy
 from multimaster_udp.msg import TopicInfoArray, TopicInfo
 from multimaster_udp.srv import AdvertiseUDP
 
+
 class Organizer(object):
     """docstring for Organizer
 
@@ -17,7 +18,7 @@ class Organizer(object):
               port: 11411,
               data_type: "std_msgs/String",
               md5sum: "135e135e135e135e135e135e135e135e"}]
-    
+
     Lookup table: {topic_name: [port]}
     """
     INITIAL_UDP_PORT = 11411
@@ -27,7 +28,8 @@ class Organizer(object):
 
     def __init__(self):
         super(Organizer, self).__init__()
-        rospy.Service("organizer/topic", AdvertiseUDP, self.__advertise_callback)
+        rospy.Service("organizer/topic", AdvertiseUDP,
+                      self.__advertise_callback)
 
     def __advertise_callback(self, srv_msg):
         result = self.add(srv_msg.topic)
@@ -50,6 +52,7 @@ class Organizer(object):
     def spin(self):
         rate = rospy.Rate(0.1)
         rospy.spin()
+
 
 def main():
     organizer = Organizer()
